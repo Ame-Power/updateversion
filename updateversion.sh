@@ -149,7 +149,15 @@ fi
 # Get the latest tag name and count commits since last tag
 VERSION_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0")
 
+# Parse the tag to extract version numbers. Assuming the tag is in the format vMAJOR.MINOR
+# For example, v0.2
+IFS='.' read -ra VERSION_PARTS <<< "${VERSION_TAG#v}"
+VERSION_MAJOR=${VERSION_PARTS[0]}
+VERSION_MINOR=${VERSION_PARTS[1]}
+
 COMMITS_SINCE_TAG=$(git rev-list ${VERSION_TAG}..HEAD --count 2>/dev/null || echo "0")
+# The patch version is based on the number of commits since the last tag update
+VERSION_PATCH=${COMMITS_SINCE_TAG}
 
 
 # Parse parameters if any
