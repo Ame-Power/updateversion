@@ -1,5 +1,9 @@
 #!/bin/bash
 
+VERSION_MAJOR=0
+VERSION_MINOR=0
+VERSION_PATCH=0
+
 # Function to parse parameters and update version numbers accordingly
 parse_parameters() {
     while [[ $# -gt 0 ]]; do
@@ -125,23 +129,28 @@ EOF
 }
 
 # Get the branch name
-BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+if [ -z "$BRANCH_NAME" ] || [ "$BRANCH_NAME" == "HEAD" ]; then
+    BRANCH_NAME="no_branch_found"
+fi
 
 # Get the commit ID (first 8 characters)
-COMMIT_ID=$(git rev-parse HEAD)
-COMMIT_ID_SHORT=$(git rev-parse --short=10 HEAD)
+COMMIT_ID=$(git rev-parse HEAD 2>/dev/null || echo "")
+if [ -z "$COMMIT_ID" ]; then
+    COMMIT_ID="0000"
+    COMMIT_ID_SHORT="0000"
+else
+    COMMIT_ID_SHORT=$(git rev-parse --short=10 HEAD 2>/dev/null)
+    if [ -z "$COMMIT_ID_SHORT" ]; then
+        COMMIT_ID_SHORT="0000"
+    fi
+fi
+
 # Get the latest tag name and count commits since last tag
-VERSION_TAG=$(git describe --tags --abbrev=0)
-COMMITS_SINCE_TAG=$(git rev-list ${VERSION_TAG}..HEAD --count)
+VERSION_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0")
 
-# Parse the tag to extract version numbers. Assuming the tag is in the format vMAJOR.MINOR
-# For example, v0.2
-IFS='.' read -ra VERSION_PARTS <<< "${VERSION_TAG#v}"
-VERSION_MAJOR=${VERSION_PARTS[0]}
-VERSION_MINOR=${VERSION_PARTS[1]}
+COMMITS_SINCE_TAG=$(git rev-list ${VERSION_TAG}..HEAD --count 2>/dev/null || echo "0")
 
-# The patch version is based on the number of commits since the last tag update
-VERSION_PATCH=${COMMITS_SINCE_TAG}
 
 # Parse parameters if any
 parse_parameters "$@"
@@ -224,7 +233,7 @@ EOF
 			fi
 		
 			# Concatenate version numbers into a 24-bit value
-			VERSION_OUT=$((VERSION_MAJOR << 20 | VERSION_MINOR << 14 | VERSION_PATCH << 8 | VERSION_BUILD))
+			VERSION_OUT=$((VERSION_MAJOR << 16 | VERSION_MINOR << 8 | VERSION_PATCH))
 			VERSION_OUT=$(printf '%x\n' $VERSION_OUT)
 			# Create Verilog file
 			cat > $FILENAME <<EOF
@@ -242,8 +251,11 @@ module version (
 // Build: $VERSION_BUILD
 // Branch: $BRANCH_NAME
 
-// version_out = (VERSION_MAJOR << 20 | VERSION_MINOR << 14 | VERSION_PATCH << 8 | VERSION_BUILD)
-localparam [23:0] CONST_VERSION_OUT = 24'h$VERSION_OUT;
+// version_out = (VERSION_MAJOR << 16 | VERSION_MINOR << 8 | VERSION_PATCH)
+localparam [7:0] VERSION_MAJOR = 8'd$VERSION_MAJOR;
+localparam [7:0] VERSION_MINOR = 8'd$VERSION_MINOR;
+localparam [7:0] VERSION_PATCH = 8'd$VERSION_PATCH;
+localparam [23:0] CONST_VERSION_OUT = ((VERSION_MAJOR << 16) | (VERSION_MINOR << 8) | VERSION_PATCH);
 localparam [39:0] CONST_COMMIT_OUT = 40'h$COMMIT_ID_SHORT;
 
 // Continuous assignments for wire outputs
