@@ -246,11 +246,23 @@ EOF
 			# Create Verilog file
 			cat > $FILENAME <<EOF
 module version (
-	output wire [23:0] version_out,
-	output wire [39:0] commit_out,
-	output wire [31:0] version_upper32,
-	output wire [31:0] version_lower32
+    input PCLK,
+    input PRESETn,
+    input PSELx,
+    input PENABLE,
+    input PWRITE,
+    input [15:0] PADDR,
+    input [31:0] PWDATA,
+    output reg [31:0] PRDATA,
+    output reg PREADY,   // APB ready signal
+    output PSLVERR,  // APB Error Signal
+	output wire [7:0] major,
+	output wire [7:0] minor,
+	output wire [7:0] patch,
+	output wire [31:0] commit
 );
+
+assign PSLVERR = 0;
 
 // v$VERSION_MAJOR.$VERSION_MINOR.$VERSION_PATCH
 // Major: $VERSION_MAJOR
@@ -266,15 +278,32 @@ localparam [7:0] VERSION_PATCH = 8'd$VERSION_PATCH;
 localparam [23:0] CONST_VERSION_OUT = ((VERSION_MAJOR << 16) | (VERSION_MINOR << 8) | VERSION_PATCH);
 localparam [39:0] CONST_COMMIT_OUT = 40'h$COMMIT_ID_SHORT;
 
-// Continuous assignments for wire outputs
-assign version_out = CONST_VERSION_OUT;
-assign commit_out = CONST_COMMIT_OUT;
+assign major = VERSION_MAJOR;
+assign minor = VERSION_MINOR;
+assign patch = VERSION_PATCH;
+assign commit = CONST_COMMIT_OUT[39:32];
 
-// Make version_upper32 to be: lower 8 bits from commit_out and version_out
-assign version_upper32 = {CONST_VERSION_OUT[23:0], CONST_COMMIT_OUT[39:32]};
 
-// version_lower32: upper 32 bits of commit_out
-assign version_lower32 = CONST_COMMIT_OUT[31:0];
+always @(posedge PCLK , negedge PRESETn) begin
+
+if (!PRESETn) begin
+	PRDATA <= 0;
+	PREADY <= 0;
+end 
+else 
+	if (PSELx && !PWRITE && PENABLE) begin
+		case (PADDR[11:0])
+			16'h0000: PRDATA <= VERSION_MAJOR;
+			16'h0004: PRDATA <= VERSION_MINOR;
+			16'h0008: PRDATA <= VERSION_PATCH;
+			16'h000C: PRDATA <= CONST_COMMIT_OUT[39:32];
+			default: PRDATA <= 32'h00000000; // Default case
+		endcase
+		PREADY <= 1;
+	end	else begin
+		PREADY <= 0;
+	end
+end
 
 endmodule
 EOF
