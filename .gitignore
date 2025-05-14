@@ -1,5 +1,2 @@
-# Ignore everything but the zip file with source
-*
-!.gitignore
-!README.md
-!updateversion.sh
+version.v
+version.h
