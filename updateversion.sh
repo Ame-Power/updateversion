@@ -246,23 +246,11 @@ EOF
 			# Create Verilog file
 			cat > $FILENAME <<EOF
 module version (
-    input PCLK,
-    input PRESETn,
-    input PSELx,
-    input PENABLE,
-    input PWRITE,
-    input [15:0] PADDR,
-    input [31:0] PWDATA,
-    output reg [31:0] PRDATA,
-    output reg PREADY,   // APB ready signal
-    output PSLVERR,  // APB Error Signal
 	output wire [7:0] major,
 	output wire [7:0] minor,
 	output wire [7:0] patch,
 	output wire [31:0] commit
 );
-
-assign PSLVERR = 0;
 
 // v$VERSION_MAJOR.$VERSION_MINOR.$VERSION_PATCH
 // Major: $VERSION_MAJOR
@@ -281,29 +269,7 @@ localparam [39:0] CONST_COMMIT_OUT = 40'h$COMMIT_ID_SHORT;
 assign major = VERSION_MAJOR;
 assign minor = VERSION_MINOR;
 assign patch = VERSION_PATCH;
-assign commit = CONST_COMMIT_OUT[39:32];
-
-
-always @(posedge PCLK , negedge PRESETn) begin
-
-if (!PRESETn) begin
-	PRDATA <= 0;
-	PREADY <= 0;
-end 
-else 
-	if (PSELx && !PWRITE && PENABLE) begin
-		case (PADDR[11:0])
-			16'h0000: PRDATA <= VERSION_MAJOR;
-			16'h0004: PRDATA <= VERSION_MINOR;
-			16'h0008: PRDATA <= VERSION_PATCH;
-			16'h000C: PRDATA <= CONST_COMMIT_OUT[39:32];
-			default: PRDATA <= 32'h00000000; // Default case
-		endcase
-		PREADY <= 1;
-	end	else begin
-		PREADY <= 0;
-	end
-end
+assign commit = CONST_COMMIT_OUT[39:8];
 
 endmodule
 EOF
