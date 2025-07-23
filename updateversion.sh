@@ -140,7 +140,7 @@ if [ -z "$COMMIT_ID" ]; then
     COMMIT_ID="0000"
     COMMIT_ID_SHORT="0000"
 else
-    COMMIT_ID_SHORT=$(git rev-parse --short=10 HEAD 2>/dev/null)
+    COMMIT_ID_SHORT=$(git rev-parse --short=8 HEAD 2>/dev/null)
     if [ -z "$COMMIT_ID_SHORT" ]; then
         COMMIT_ID_SHORT="0000"
     fi
